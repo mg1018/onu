@@ -51,10 +51,16 @@ export async function sendApprovalEmail(input: {
     </div>
   `;
 
-  await resend.emails.send({
+  const result = await resend.emails.send({
     from,
     to: input.approverEmail,
     subject: `[온유 파이프라인] 스크립트 승인 요청 — ${input.caseNumber}`,
     html,
   });
+
+  if (result.error) {
+    throw new Error(
+      `Resend send failed: ${result.error.name} — ${result.error.message}`,
+    );
+  }
 }

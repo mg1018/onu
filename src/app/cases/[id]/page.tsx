@@ -3,6 +3,7 @@ import { cases, scripts, renders, pipelineLogs } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { statusBadgeClass, statusLabel } from "@/lib/status";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -46,7 +47,11 @@ export default async function CaseDetailPage({ params }: Props) {
           <h1 className="text-2xl font-semibold">{caseRow.caseNumber}</h1>
           <div className="mt-2 flex gap-2">
             <Badge>{caseRow.procedure}</Badge>
-            <Badge>{caseRow.status}</Badge>
+            <span
+              className={`rounded-md px-2 py-0.5 text-xs font-medium ${statusBadgeClass(caseRow.status)}`}
+            >
+              {statusLabel(caseRow.status)}
+            </span>
           </div>
         </header>
 
@@ -122,25 +127,43 @@ export default async function CaseDetailPage({ params }: Props) {
             <Empty>로그 없음</Empty>
           ) : (
             <ul className="space-y-1 text-xs font-mono">
-              {logList.map((l) => (
-                <li key={l.id} className="flex gap-3">
-                  <span className="text-zinc-400">
-                    {new Date(l.createdAt).toLocaleTimeString()}
-                  </span>
-                  <span className="text-zinc-500">[{l.stage}]</span>
-                  <span
-                    className={
-                      l.level === "error"
-                        ? "text-red-600"
-                        : l.level === "warn"
-                          ? "text-amber-600"
-                          : ""
-                    }
-                  >
-                    {l.message}
-                  </span>
-                </li>
-              ))}
+              {logList.map((l) => {
+                const urls = extractUrls(l.payload);
+                return (
+                  <li key={l.id} className="flex flex-col gap-0.5">
+                    <div className="flex gap-3">
+                      <span className="text-zinc-400">
+                        {new Date(l.createdAt).toLocaleTimeString()}
+                      </span>
+                      <span className="text-zinc-500">[{l.stage}]</span>
+                      <span
+                        className={
+                          l.level === "error"
+                            ? "text-red-600"
+                            : l.level === "warn"
+                              ? "text-amber-600"
+                              : ""
+                        }
+                      >
+                        {l.message}
+                      </span>
+                    </div>
+                    {urls.map(({ key, url }) => (
+                      <div key={key} className="ml-[5.5rem] flex gap-2 text-[11px]">
+                        <span className="text-zinc-500">{key}:</span>
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline truncate max-w-md"
+                        >
+                          {url}
+                        </a>
+                      </div>
+                    ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Section>
@@ -168,4 +191,13 @@ function Badge({ children }: { children: React.ReactNode }) {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-zinc-500">{children}</p>;
+}
+
+function extractUrls(payload: unknown): Array<{ key: string; url: string }> {
+  if (!payload || typeof payload !== "object") return [];
+  return Object.entries(payload as Record<string, unknown>)
+    .filter(
+      ([, v]) => typeof v === "string" && /^https?:\/\//.test(v),
+    )
+    .map(([key, v]) => ({ key, url: v as string }));
 }

@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { cases } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import Link from "next/link";
+import { statusBadgeClass, statusLabel } from "@/lib/status";
 
 export default async function CasesPage() {
   const list = await db
@@ -40,8 +41,10 @@ export default async function CasesPage() {
                   </td>
                   <td>{c.procedure}</td>
                   <td>
-                    <span className="rounded bg-zinc-200 px-2 py-0.5 text-xs dark:bg-zinc-800">
-                      {c.status}
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-xs font-medium ${statusBadgeClass(c.status)}`}
+                    >
+                      {statusLabel(c.status)}
                     </span>
                   </td>
                   <td>{new Date(c.createdAt).toLocaleDateString()}</td>

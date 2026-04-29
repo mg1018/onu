@@ -13,7 +13,7 @@ export default async function NewCasePage() {
         </Link>
         <h1 className="mb-8 text-2xl font-semibold">새 케이스 등록</h1>
 
-        <form action={createCase} className="space-y-6" encType="multipart/form-data">
+        <form action={createCase} className="space-y-6">
           <Field label="클리닉" required>
             <select name="clinicId" required className="select">
               <option value="">선택...</option>
@@ -112,7 +112,7 @@ export default async function NewCasePage() {
 
           <button
             type="submit"
-            className="w-full rounded-md bg-black px-4 py-3 font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black"
+            className="w-full rounded-md bg-black px-4 py-3 font-medium text-white transition-colors hover:bg-zinc-700 active:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:active:bg-zinc-300"
           >
             파이프라인 시작
           </button>

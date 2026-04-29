@@ -20,6 +20,7 @@ export const caseStatusEnum = pgEnum("case_status", [
   "packaging",
   "delivered",
   "failed",
+  "pending_setup",
 ]);
 
 export const procedureEnum = pgEnum("procedure", [

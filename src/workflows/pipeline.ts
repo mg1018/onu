@@ -77,12 +77,6 @@ async function loadCaseData(caseId: string) {
     where: (c, { eq }) => eq(c.id, row.clinicId),
   });
   if (!clinic) throw new FatalError(`Clinic ${row.clinicId} not found`);
-  if (!clinic.heygenAvatarId || !clinic.elevenlabsVoiceId) {
-    throw new FatalError("Clinic avatar or voice not configured");
-  }
-  if (!clinic.driveFolderId) {
-    throw new FatalError("Clinic Drive folder not configured");
-  }
   return { caseRow: row, clinic };
 }
 
@@ -386,9 +380,14 @@ export async function generateContentPipeline(
 
   // Step 4: Voice
   await setCaseStatus(caseId, "generating_voice");
+  if (!clinic.elevenlabsVoiceId) {
+    await logEvent(caseId, "voice", "Skipped: elevenlabsVoiceId not set on clinic", "warn");
+    await setCaseStatus(caseId, "pending_setup");
+    return { status: "incomplete", reason: "no voice id" };
+  }
   const finalScript = approval.revisedScript ?? script.content;
   const voiceoverUrl = await generateVoiceover({
-    voiceId: clinic.elevenlabsVoiceId!,
+    voiceId: clinic.elevenlabsVoiceId,
     text: finalScript,
     caseId,
   });
@@ -396,10 +395,16 @@ export async function generateContentPipeline(
 
   // Step 5: Avatar render per platform (Korean)
   await setCaseStatus(caseId, "generating_avatar");
+  if (!clinic.heygenAvatarId) {
+    await logEvent(caseId, "avatar", "Skipped: heygenAvatarId not set on clinic", "warn");
+    await setCaseStatus(caseId, "pending_setup");
+    return { status: "incomplete", reason: "no avatar id" };
+  }
+  const heygenAvatarId = clinic.heygenAvatarId;
   const koreanRenders: Array<{ platform: Platform; videoId: string }> = [];
   for (const platform of platforms) {
     const videoId = await kickoffAvatarRender({
-      avatarId: clinic.heygenAvatarId!,
+      avatarId: heygenAvatarId,
       audioUrl: voiceoverUrl,
       title: `${caseRow.caseNumber}-${platform}`,
       platform,
@@ -466,12 +471,27 @@ export async function generateContentPipeline(
     }
   }
 
-  // Step 7: Package + Drive
+  // Step 7: Package + Drive (선택적 — driveFolderId 미설정 시 Blob URL로 완료 처리)
   await setCaseStatus(caseId, "packaging");
+  if (!clinic.driveFolderId) {
+    await logEvent(
+      caseId,
+      "package",
+      "Drive not configured — delivered via Vercel Blob URLs",
+      "info",
+      { deliverableCount: deliverables.length },
+    );
+    await setCaseStatus(caseId, "delivered");
+    return {
+      status: "delivered",
+      driveFolderId: null,
+      deliverableCount: deliverables.length,
+    };
+  }
   const driveFolderId = await packageToDrive({
     caseId,
     caseNumber: caseRow.caseNumber,
-    clinicDriveFolderId: clinic.driveFolderId!,
+    clinicDriveFolderId: clinic.driveFolderId,
     deliverables,
     hashtags: script.hashtags,
   });

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { cases } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { statusBadgeClass, statusLabel } from "@/lib/status";
 
 export default async function Home() {
   let recent: Awaited<ReturnType<typeof db.select.prototype.execute>> = [];
@@ -58,8 +59,10 @@ export default async function Home() {
                   <Link href={`/cases/${c.id}`} className="font-medium hover:underline">
                     {c.caseNumber}
                   </Link>
-                  <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-800">
-                    {c.status}
+                  <span
+                    className={`rounded-md px-2 py-0.5 text-xs font-medium ${statusBadgeClass(c.status)}`}
+                  >
+                    {statusLabel(c.status)}
                   </span>
                 </li>
               ))}
