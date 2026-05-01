@@ -3,6 +3,7 @@ import { scripts, cases } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { submitApproval } from "@/app/actions";
 import { notFound } from "next/navigation";
+import { ApprovalButtons } from "./buttons";
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -70,26 +71,7 @@ export default async function ApprovePage({ params }: Props) {
             />
           </details>
 
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              name="approved"
-              value="true"
-              disabled={alreadyHandled}
-              className="flex-1 rounded-md bg-emerald-600 px-4 py-3 font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              승인하고 영상 생성
-            </button>
-            <button
-              type="submit"
-              name="approved"
-              value="false"
-              disabled={alreadyHandled}
-              className="flex-1 rounded-md border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-            >
-              반려
-            </button>
-          </div>
+          <ApprovalButtons alreadyHandled={alreadyHandled} />
         </form>
       </div>
     </main>

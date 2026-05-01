@@ -27,7 +27,7 @@ type ApprovalPayload = {
   revisedScript?: string;
 };
 
-const TARGET_LANGUAGES = ["en", "ja", "zh"] as const;
+const TARGET_LANGUAGES = [] as const;
 type TargetLang = (typeof TARGET_LANGUAGES)[number];
 
 const PLATFORM_DIMENSIONS = {
@@ -332,7 +332,7 @@ function getIsoWeek(d: Date): string {
 export async function generateContentPipeline(
   caseId: string,
   templateId: string,
-  platforms: Platform[] = ["tiktok", "youtube_shorts", "instagram_reels"],
+  platforms: Platform[] = ["youtube_shorts"],
 ) {
   "use workflow";
 

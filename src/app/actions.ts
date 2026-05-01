@@ -119,7 +119,9 @@ export async function submitApproval(formData: FormData) {
     where: eq(scripts.approvalToken, parsed.token),
   });
   if (!script) throw new Error("Invalid approval token");
-  if (script.approved) throw new Error("이미 처리된 승인 요청");
+  if (script.approved) {
+    redirect(`/approve/${parsed.token}/done`);
+  }
 
   await resumeHook(`approval:${parsed.token}`, {
     approved: parsed.approved === "true",

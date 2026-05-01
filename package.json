@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3004",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -14,10 +14,12 @@
     "db:seed": "dotenv -e .env.development.local -e .env.local -- tsx scripts/seed.ts",
     "heygen:check": "dotenv -e .env.local -- tsx scripts/heygen-check.ts",
     "drive:check": "dotenv -e .env.development.local -e .env.local -- tsx scripts/drive-check.ts",
+    "drive:oauth-init": "dotenv -e .env.local -- tsx scripts/drive-oauth-init.ts",
     "workflow:web": "workflow web",
     "workflow:health": "workflow health"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.72",
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/blob": "^2.3.3",
     "@workflow/ai": "^4.1.2",

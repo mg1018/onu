@@ -1,6 +1,53 @@
 # 온유 파이프라인 — 진행 상황
 
-마지막 업데이트: 2026-04-29
+마지막 업데이트: 2026-05-01
+
+## 🚀 다음 세션 시작 — 첫 명령부터 따라가는 플랜
+
+**선택된 진행 중 작업**: Drive OAuth refresh token 방식 전환 (사용자 결정 5/1, Option B)
+**중단 지점**: `scripts/drive-oauth-init.ts` + `npm run drive:oauth-init` 등록 완료. 사용자의 OAuth 클라이언트 발급 대기.
+
+### 다음 세션 액션 (순서대로 실행)
+
+1. **[Claude] 환경 점검** (시작 직후 자동)
+   - `vercel whoami` → `gksaudrhks12-9858` 확인
+   - `vercel env ls | grep -i google_oauth` → 새 키 등록됐는지 확인
+   - 안 됐으면 → 2번 사용자 안내, 됐으면 → 3번으로
+
+2. **[사용자] Google Cloud OAuth 클라이언트 발급** (선행 시 skip)
+   - 본 문서 끝 **"부록 — Google OAuth 클라이언트 발급 가이드"** 참조
+   - 결과: `GOOGLE_OAUTH_CLIENT_ID` + `GOOGLE_OAUTH_CLIENT_SECRET` 두 값
+   - 사용자가 `.env.local`에 직접 박은 뒤 "박았다"고만 알려주면 됨 (시크릿 채팅 노출 금지)
+
+3. **[사용자 + Claude] refresh token 발급**
+   - 사용자 명령: `npm run drive:oauth-init`
+   - 출력 URL → 사용자 브라우저로 승인 → 콘솔에 refresh_token 표시
+   - `.env.local`에 `GOOGLE_OAUTH_REFRESH_TOKEN=...` 추가
+   - Vercel env에도 동일 값 등록 (3개 환경)
+
+4. **[Claude] `src/lib/drive.ts` 수정**
+   - 현재: `google.auth.GoogleAuth` (service account JSON)
+   - 변경: `google.auth.OAuth2(clientId, clientSecret)` + `setCredentials({ refresh_token })`
+   - googleapis가 access token 자동 갱신
+
+5. **[Claude] DB 시드**
+   - `clinic.drive_folder_id`에 `1T_lXT_otiNBiTlgrnunZI_4P_cvilJXV` 박기 (단일 클리닉이라 직접 update or seed 수정)
+
+6. **[사용자 + Claude] 검증**
+   - 새 케이스 등록 → 워크플로 진행 → 사용자 Drive 폴더에 mp4가 들어오는지 확인
+   - 성공 시 PROGRESS.md Phase 5 완료 표시
+
+### 보류 / 별도 트랙 (B 끝나면 우선순위 정함)
+- **자막 burn-in** (옵션 3 — HeyGen text input + caption:true)
+- **번역 자동화 미작동 원인** — pipeline.ts L405 platforms loop 구조 점검
+- **결과물 페이지 인라인 플레이어** (`<audio>` / `<video>` controls)
+- **Resend 도메인 인증** — 운영 진입 전
+- **HeyGen wallet 자동충전 활성화 검토** — 현재 $4.97 / 영상 4편치
+
+### 5/1 검증 산출물 (case 02) — ⚠️ 만료 주의
+- **영상 mp4** (HeyGen CDN signed URL): **약 7일 후(2026-05-08 경) 만료** — 다음 세션 진입 전 다운로드 권장
+- **음성 mp3** (Vercel Blob): 만료 없음
+- 전체 URL: `STATUS_2026-05-01.md` 참조
 
 ## 검증된 파이프라인 흐름 (End-to-End)
 
@@ -21,11 +68,11 @@ recordApproval (DB에 승인 결과 기록)
    ↓
 generateVoiceover (ElevenLabs TTS → Vercel Blob 업로드)  ✅
    ↓
-generateAvatar (HeyGen) — heygenAvatarId 없으면 skip 후 failed  ⏳
+generateAvatar (HeyGen) — wallet 차감, 한국어 mp4 생성  ✅
    ↓
-translate (ElevenLabs Dubbing)  ⏳
+translate (ElevenLabs Dubbing)  ⚠️ 미호출 — 원인 조사 필요
    ↓
-packageToDrive (Google Drive 업로드)  ⏳
+packageToDrive (Google Drive 업로드)  ⏭️ 우회 (driveFolderId null → Blob URL이 최종)
 ```
 
 ## 완료된 작업
@@ -68,25 +115,29 @@ packageToDrive (Google Drive 업로드)  ⏳
 
 ## 다음 작업
 
-### Phase 3 — 영상 생성 (셋업 완료, 검증 대기)
-- [x] **HeyGen 셋업 완료** (2026-04-29)
-  - HeyGen 계정 + API 키 발급/등록 (`HEYGEN_API_KEY`)
-  - **커스텀 아바타 이미 학습돼 있음**: `onyoo clinic` (`48e30d8627d74f119c27e95fc213a630`)
-  - heygen-check 통과: stock 1283개, talking photos 5474개 접근 가능
-  - Vercel env + 클리닉 DB 모두 등록 완료
-- [ ] **워크플로 실증 검증** — 다음 세션에서 end-to-end 테스트
-  - generateAvatar → waitForHeyGen → mp4 URL 반환 확인
-  - 더빙(Phase 4) → "delivered" 도달까지 (Drive 우회)
+### Phase 3 — 영상 생성 ✅ 완료
+- [x] **커스텀 아바타 등록**: `onyoo clinic` (`48e30d8627d74f119c27e95fc213a630`)
+- [x] Vercel env 등록 (`HEYGEN_API_KEY`, `SEED_HEYGEN_AVATAR_ID`)
+- [x] **HeyGen API 키 재확인** — Vercel env에 정상 값 들어가있었음 (PROGRESS.md엔 빈 문자열로 적혀있던 게 부정확). `npm run heygen:check` 통과
+- [x] **결제 모드 확인** — `billing_type: wallet` (pay-as-you-go), 구독 없음. 영상 1편당 ~$0.95 차감
+- [x] **wallet 충전** — $5 top-up (담당자 결제, 2026-05-01). $0.92 → $5.92 → 검증 후 $4.97
+- [x] **end-to-end 검증** — case 02 (`c4b4825f-...`) 한국어 youtube_shorts 1편 정상 delivered (3분 5초 소요)
 
-### Phase 4 — 다국어 더빙
-- [ ] **ElevenLabs Dubbing API** — 한국어 mp4 → en/ja/zh 번역
-  - 권한 이미 부여됨 (현재 API 키에 더빙 읽기/작성)
-  - HeyGen 결과물(mp4)이 있어야 더빙 가능 → Phase 3 의존
-  - 워크플로 코드는 이미 작성돼있음 (src/workflows/pipeline.ts)
+### Phase 4 — 다국어 더빙 ⚠️ 자동 호출 안 됨
+- [x] **ElevenLabs Dubbing API** — 권한 부여 + 코드 작성 완료
+- ⚠️ **case 02 검증 시 translate 단계가 호출되지 않음** — `deliverableCount: 1`만 기록 (한국어 1편)
+- 원인 후보: pipeline.ts L405 `for (const platform of platforms)` 구조에서 Korean render 후 translate loop 진입 조건 누락 가능성
+- **다음 작업**: pipeline.ts 코드 점검 + 1차 fix 후 재검증
 
-### Phase 5 — Drive 패키징 (셋업 완료, 검증 대기)
-- [x] 셋업 — Phase 5 완료 항목 참조
-- [ ] 실제 업로드 검증 — HeyGen 영상 생성 후 가능
+### Phase 5 — Drive 패키징 (OAuth 방식으로 전환 작업 중)
+- [x] **이전 시도** — service account 셋업 완료, 그러나 개인 Gmail 정책상 업로드 불가 (Option C로 보류했었음)
+- [x] **OAuth refresh token 방식 시작 (2026-05-01)** — 사용자 본인 Drive에 직접 업로드. quota 정책 우회
+  - [x] `scripts/drive-oauth-init.ts` 추가 + `npm run drive:oauth-init` 명령 등록
+  - [ ] Google Cloud Console에서 OAuth Desktop 클라이언트 발급 (사용자 작업)
+  - [ ] refresh token 발급 + env 등록
+  - [ ] `src/lib/drive.ts` 수정 (service account → OAuth2Client)
+  - [ ] DB clinic.drive_folder_id에 `1T_lXT_otiNBiTlgrnunZI_4P_cvilJXV` 박기
+  - [ ] 새 케이스 등록 → Drive 업로드 검증
 
 ## 정리/개선 거리
 
@@ -199,16 +250,22 @@ packageToDrive (Google Drive 업로드)  ⏳
 
 ## 환경변수 현황
 
-### Vercel 등록 완료 (2026-04-29 시점)
+### Vercel 등록 완료 (2026-05-01 시점)
+- `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` — 단 코드는 string-based 모델 ID로 AI Gateway 라우팅 (실 결제는 Vercel AI Gateway $5/월 무료 크레딧)
 - `RESEND_API_KEY`, `RESEND_FROM` (Onyoo <onboarding@resend.dev>)
 - `ELEVENLABS_API_KEY`, `SEED_ELEVENLABS_VOICE_ID` (`s07IwTCOrCDCaETjUVjx`)
-- `HEYGEN_API_KEY`, `SEED_HEYGEN_AVATAR_ID` (`48e30d8627d74f119c27e95fc213a630`) ✅
+- `HEYGEN_API_KEY` ✅ 정상 (이전 PROGRESS.md 기록은 부정확이었음)
+- `SEED_HEYGEN_AVATAR_ID` (`48e30d8627d74f119c27e95fc213a630`)
 - `BLOB_READ_WRITE_TOKEN`
+- `VERCEL_OIDC_TOKEN` — AI Gateway 자동 인증
 - `DATABASE_URL` 외 Neon 관련 일체 (Vercel-Neon Marketplace 연동 자동 관리)
 
-### Vercel 미등록 / 사용 안 함
-- `SEED_DRIVE_FOLDER_ID`, `GOOGLE_SERVICE_ACCOUNT_KEY` — Drive 우회로 미사용
-- (선택) `APP_BASE_URL` (development 환경에서만)
+### Vercel 등록됐으나 미사용 / 보류
+- `SEED_DRIVE_FOLDER_ID` (값 비어있음), `GOOGLE_SERVICE_ACCOUNT_JSON` — service account 방식 보류, OAuth로 전환 작업 중
+- (선택) `APP_BASE_URL` (development 환경에서만, 현재 `http://localhost:3004`)
+
+### 추가 예정 (Drive OAuth)
+- `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN`
 
 ## 검증 케이스 기록
 
@@ -216,9 +273,80 @@ packageToDrive (Google Drive 업로드)  ⏳
 - TEST-015 (eyes, 턱끝/코끝): 동일하게 음성 생성 24s, 1m 27s 전체 워크플로 완료 — 4:53~4:55 PM
 - ⚠️ 2026-04-29: Vercel 프로젝트 이전 + DB 비밀번호 rotate + 새 Neon DB 생성으로 **기존 케이스 데이터 모두 초기화됨**. 다음 세션부터 새 검증 케이스 기록.
 
+### 2026-05-01 검증 케이스
+- **case 02 (`c4b4825f-0325-4aac-9322-07b052007b61`)** — 코성형 / "소진" / nose
+  - 단계 시간: script +11s → voice +36s → avatar +138s → delivered. 총 **3분 5초**
+  - 결과물: 한국어 youtube_shorts 1편 (1080×1920 mp4)
+  - HeyGen mp4 URL: `files2.heygen.ai/...mp4` (signed, 7일 만료)
+  - 음성 mp3: Vercel Blob (만료 없음)
+  - 자막 SRT: 없음 (audio_url 입력 방식이라 HeyGen이 SRT 미발급)
+  - 비용: HeyGen $0.95 + Anthropic ~$0.005
+- **case 5c931a8c (TEST_0501_01)** — HeyGen wallet 부족으로 generating_avatar에서 fail (충전 전)
+- **case 1f3af067 (TEST_0501)** — 위와 동일 사유 fail
+
 ## 2026-04-29 세션 변경 이력
 
 - **Vercel 프로젝트 이전**: `mg1018-whatapios-projects` → `gksaudrhks12-9858s-projects/v0-new-project-dcjikfknorx` (개인 Gmail 계정 / v0 자동 생성 프로젝트)
 - **시크릿 rotate**: HeyGen API 키, Neon DB 비밀번호 (둘 다 채팅 노출 후 즉시 무효화 + 재발급)
 - **DB 재구축**: 새 Neon 인스턴스에 `npm run db:push`로 스키마 적용, `db:seed`로 클리닉 1개 재생성
-- **HeyGen 검증 완료**: 커스텀 아바타 `onyoo clinic` 발견 → seed 등록
+- **HeyGen 커스텀 아바타 확인**: `onyoo clinic` 발견 → seed 등록
+
+## 2026-05-01 세션 변경 이력
+
+### 오전 (이전 세션)
+- **status enum에 `pending_setup` 추가** — 셋업 미완료로 인한 종료를 `failed`와 분리. 노란 "셋업 대기" 배지로 UI 구분
+- **APP_BASE_URL을 `.env.development.local`로 분리** — `vercel env pull`이 더 이상 덮어쓰지 않음
+- **Drive 통합 시도 → Option C로 결정** (Phase 5 보류 → 오후에 OAuth로 재시도)
+  - 서비스 계정 + 폴더 공유까지 완료했으나 개인 Gmail 정책상 업로드 불가 ("Service Accounts do not have storage quota")
+  - 워크플로: `driveFolderId`가 null이면 Blob URL로 "delivered" 처리하도록 수정
+- **`scripts/drive-check.ts` 추가** — Drive 통합 단독 검증 스크립트
+- **`db:seed` 스크립트 dual env 로드** — `.env.development.local` + `.env.local` 모두 인식
+- **케이스 상세 페이지 URL 클릭 가능화**
+
+### 오후 (현재 세션)
+- **환경 정리**: Vercel 9858 계정 재로그인 + `v0-new-project-dcjikfknorx` 재link + `vercel env pull` 동기화
+- **로컬 포트 고정**: 3000 점유 충돌 회피 위해 `dev` 스크립트를 `next dev -p 3004`로 변경. `APP_BASE_URL`도 3004로 일치
+- **외부 서비스 잔액 점검 루틴**: HeyGen `/v1/user/me` (wallet), ElevenLabs `/v1/user/subscription` (권한 부족), Vercel AI Gateway 잔액 ($4.95 / 월 $5 무료 크레딧 사용)
+- **AI Gateway 라우팅 확인**: 코드의 `model: "anthropic/claude-sonnet-4-5"` string ID + `VERCEL_OIDC_TOKEN` 으로 Anthropic 직접 호출 우회 → Vercel 결제로 통합
+- **HeyGen wallet 충전 $5** (담당자 결제) — $0.92 → $5.92
+- **end-to-end 검증 완료** — case 02 한국어 youtube_shorts 1편 정상 delivered (자세한 내용은 위 검증 케이스 섹션)
+- **HeyGen `test` flag 변경 흔적**: 디버깅 중 `test: true` 시도했으나 wallet 정책상 동일하게 차단되는 것 확인 → `test: false` 운영 모드 그대로 사용
+- **자막 burn-in 옵션 분석** — 현재 audio_url 입력 방식으로는 HeyGen이 SRT 안 줌. 옵션 3 (text input + caption:true) 적용 시 가능 (별도 작업 필요)
+- **Drive OAuth 방식 작업 시작** — `scripts/drive-oauth-init.ts` + `npm run drive:oauth-init` 등록. 다음: 사용자 OAuth 클라이언트 발급 후 refresh token 발급 → `src/lib/drive.ts` 코드 변경
+- **`STATUS_2026-05-01.md` 추가** — 담당자 공유용 보고서 (스크립트 샘플, 비용, 결정 사항 포함)
+- **PROGRESS.md TL;DR 재구성** — "다음 세션 액션" 6단계로 명시. 부록에 OAuth 발급 가이드 첨부
+
+---
+
+## 부록 — Google OAuth 클라이언트 발급 가이드 (다음 세션 사용자 작업)
+
+**전제**: `onyoo-pipeline` Google Cloud 프로젝트 + `onyooclinic@gmail.com` 계정 사용
+
+1. https://console.cloud.google.com → 우측 상단 프로젝트 선택 → **`onyoo-pipeline`** 클릭
+2. 좌측 햄버거 → **APIs & Services** → **OAuth consent screen**
+   - User Type: **External** 선택 → 만들기
+   - App name: `Onyoo Pipeline`
+   - User support email + Developer contact email: `onyooclinic@gmail.com`
+   - 나머지 필수 아닌 항목 빈 칸 유지 → Save and Continue
+   - **Scopes** 단계: "ADD OR REMOVE SCOPES" → `https://www.googleapis.com/auth/drive` 추가 (전체 Drive 권한 — 본인 계정이라 부담 X)
+   - **Test users**: `onyooclinic@gmail.com` 추가 (publishing 안 해도 본인 계정만으론 사용 가능)
+3. 좌측 **Credentials** → **+ CREATE CREDENTIALS** → **OAuth client ID**
+   - Application type: **Desktop app**
+   - Name: `onyoo-cli`
+   - 만들기 → JSON 다운로드 (또는 client_id / client_secret 복사)
+4. `.env.local`에 두 값 추가:
+   ```
+   GOOGLE_OAUTH_CLIENT_ID=...
+   GOOGLE_OAUTH_CLIENT_SECRET=...
+   ```
+5. Claude에게 "OAuth 클라이언트 박았어"라고 알려주면 → `npm run drive:oauth-init` 실행 안내 받음
+
+**주의**: client_secret은 채팅에 직접 붙여넣지 말고, 다운로드한 JSON 파일에서 본인이 직접 .env.local로 복사. Claude는 시크릿 받지 않음.
+
+---
+
+## 다음 세션 진입 시 첫 인사말 권장 (사용자 → Claude)
+
+> "PROGRESS.md 읽고 이어서 작업하자"
+
+→ Claude가 자동으로 위 6단계 액션 플랜에 따라 환경 점검부터 시작.
