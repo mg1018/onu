@@ -1,8 +1,10 @@
 # 환경변수 + 설정 매핑
 
-마지막 업데이트: 2026-04-30
+마지막 업데이트: 2026-05-01 (오후 — 5/1 검증 후 dev 포트/voice ID/heygen 결제 정보 갱신)
 
 > ⚠️ 이 문서엔 **시크릿 값을 적지 마세요**. 변수 이름 + 어디서 발급받는지만 기록.
+
+> 📌 **계정/마이그레이션 정보는 [ACCOUNTS.md](ACCOUNTS.md)** 에 정리. 이 문서는 env 변수 + 코드 설정 위주.
 
 ## Vercel 환경변수 매핑
 
@@ -34,22 +36,28 @@
 - `GOOGLE_SERVICE_ACCOUNT_JSON` — Drive 우회로 미사용
 - `ANTHROPIC_API_KEY` — Vercel AI Gateway 사용으로 미사용
 
-### 미등록 (선택사항)
-- `APP_BASE_URL` — 승인 메일 링크용 base URL. dev 시 `http://localhost:3000` 형태. 안 넣으면 기본값 사용.
+### 미등록 (선택사항) / 로컬 전용
+- `APP_BASE_URL` — 승인 메일 링크용 base URL. dev 시 **`http://localhost:3004`** (5/1 포트 변경). `.env.development.local`에 분리 저장 (vercel env pull로 안 덮어쓰임).
 - `SEED_APPROVER_EMAIL` — 클리닉 approverEmail. 미설정 시 코드 기본값(`mg1018@whatap.io`).
-- `SEED_DRIVE_FOLDER_ID` — Drive 폴더. 미설정 = Drive 우회.
+- `SEED_DRIVE_FOLDER_ID` — Drive 폴더. **5/1 기준 빈 문자열** (Drive 우회). OAuth 작업 후 `1T_lXT_otiNBiTlgrnunZI_4P_cvilJXV`로 채울 예정.
+
+### 다음 세션 추가 예정 (Drive OAuth 작업)
+- `GOOGLE_OAUTH_CLIENT_ID` — Google Cloud Console에서 발급
+- `GOOGLE_OAUTH_CLIENT_SECRET` — 위 클라이언트의 secret
+- `GOOGLE_OAUTH_REFRESH_TOKEN` — `npm run drive:oauth-init`로 발급
 
 ## 클리닉 시드 데이터
 
-### 현재 시드된 클리닉 (1개)
+### 현재 시드된 클리닉 (5/1 기준)
 
 | 필드 | 값 |
 |---|---|
+| id | `95e1e1a5-7392-40da-91a2-1b818d43b521` |
 | name | 온유성형외과 |
 | heygenAvatarId | `48e30d8627d74f119c27e95fc213a630` |
 | elevenlabsVoiceId | `xiljObVlrwnlICRz7xhm` (2026-04-30 변경) |
 | approverEmail | mg1018@whatap.io |
-| driveFolderId | `null` (Drive 우회) |
+| driveFolderId | `null` (Drive 우회 — OAuth 작업 후 `1T_lXT_otiNBiTlgrnunZI_4P_cvilJXV`로 변경 예정) |
 
 ### 클리닉 ID 확인 방법
 ```bash
@@ -116,10 +124,12 @@ grep -c '^HEYGEN_API_KEY=' .env.local  # 있으면 1, 없으면 0
 
 | 명령 | 역할 | 포트 |
 |---|---|---|
-| `npm run dev` | Next.js 앱 | 3000 (또는 가용 포트) |
+| `npm run dev` | Next.js 앱 | **3004** (5/1 고정 — `next dev -p 3004`) |
 | `npm run workflow:web` | Workflow runtime | 3456 |
 
 ⚠️ **둘 다 켜져 있어야 워크플로 정상 동작**. workflow:web 안 켜면 step 실행 안 됨.
+
+⚠️ **5/1 변경**: 다른 프로젝트(name_card)가 3000을 점유한 환경에서 `next dev` 자동 할당이 어긋나 `APP_BASE_URL` 미스매치 발생 → 결정적으로 3004로 박음. 운영(Vercel) 환경엔 영향 없음.
 
 ### 서버 재시작이 필요한 경우
 - 환경변수 변경 후 (`vercel env pull` 한 후)
